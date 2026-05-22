@@ -27,15 +27,33 @@ if [[ -z "$NO_PORT_MAP" ]]; then
 fi
 
 DOCKER_MACHINE_NAME="hyp-dev-env"
+CONTAINER_NAME="hyp-dev-container"
 
 if [[ -z "$DOCKER_TAG" ]]; then
     DOCKER_TAG=" hyp-dev-term:${CURRENT_VER} "
 fi
 
-docker run --privileged -h ${DOCKER_MACHINE_NAME} -it \
+# Check if container already exists
+if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    echo "Container ${CONTAINER_NAME} already exists. Skipping creation."
+    exit 0
+fi
+
+# Create and run container in background
+docker run --privileged -h ${DOCKER_MACHINE_NAME} -d \
 	${PORT_MAPPINGS} \
 	${ADDITIONAL_DOCKER_ARGS} \
 	-v tools-vol:/usr/local/mnt \
 	-v wsp-vol:/home/$USER/mnt \
 	-v ${HOST_TO_DOCKER_SHARED_DIR}:${HOST_SHARED_DIR} \
-	${DOCKER_TAG} "$@"
+	--name ${CONTAINER_NAME} \
+	${DOCKER_TAG} \
+	tail -f /dev/null
+
+echo "Container ${CONTAINER_NAME} created and running in background."
+
+# Print the method to recreate container:
+echo -e "\nIf you need to recreate the container, please use:\n"
+echo -e "\tdocker stop ${CONTAINER_NAME} && docker rm ${CONTAINER_NAME}\n"
+echo -e "\t./run-docker.sh\n"
+
